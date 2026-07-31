@@ -2,9 +2,13 @@
 
 namespace DakaKiki\CustomerArtworkUpload;
 
+use DakaKiki\CustomerArtworkUpload\Admin\ArtworkDownload;
 use DakaKiki\CustomerArtworkUpload\Admin\DependencyNotice;
-use DakaKiki\CustomerArtworkUpload\Infrastructure\Requirements;
 use DakaKiki\CustomerArtworkUpload\Admin\ProductSettings;
+use DakaKiki\CustomerArtworkUpload\Frontend\ProductUploadField;
+use DakaKiki\CustomerArtworkUpload\Infrastructure\Requirements;
+use DakaKiki\CustomerArtworkUpload\Storage\LocalStorage;
+use DakaKiki\CustomerArtworkUpload\WooCommerce\CartArtwork;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -33,6 +37,15 @@ final class Plugin {
         }
 
         ProductSettings::register();
+        ProductUploadField::register();
+
+        $storage = new LocalStorage();
+
+        $cart_artwork = new CartArtwork( $storage );
+        $cart_artwork->register();
+
+        $artwork_download = new ArtworkDownload( $storage );
+        $artwork_download->register();
 
         /**
          * Fires after Customer Artwork Upload has passed its requirements check.
