@@ -8,6 +8,7 @@ use DakaKiki\CustomerArtworkUpload\Admin\ProductSettings;
 use DakaKiki\CustomerArtworkUpload\Frontend\ProductUploadField;
 use DakaKiki\CustomerArtworkUpload\Infrastructure\Requirements;
 use DakaKiki\CustomerArtworkUpload\Storage\LocalStorage;
+use DakaKiki\CustomerArtworkUpload\WooCommerce\ArtworkCleanup;
 use DakaKiki\CustomerArtworkUpload\WooCommerce\CartArtwork;
 
 defined( 'ABSPATH' ) || exit;
@@ -46,6 +47,9 @@ final class Plugin {
 
         $artwork_download = new ArtworkDownload( $storage );
         $artwork_download->register();
+
+        $artwork_cleanup = new ArtworkCleanup( $storage );
+        $artwork_cleanup->register();
 
         /**
          * Fires after Customer Artwork Upload has passed its requirements check.
