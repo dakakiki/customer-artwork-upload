@@ -1,0 +1,22 @@
+{
+  "name": "customer-artwork-upload",
+  "version": "1.0.0",
+  "description": "Customer artwork and file uploads for WooCommerce products and orders.",
+  "private": true,
+  "scripts": {
+    "start": "wp-scripts start",
+    "build": "wp-scripts build",
+    "lint:js": "wp-scripts lint-js",
+    "lint:css": "wp-scripts lint-style",
+    "format": "wp-scripts format",
+    "packages-update": "wp-scripts packages-update"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "latest"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "license": "GPL-2.0-or-later"
+}
