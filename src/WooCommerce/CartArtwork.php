@@ -4,6 +4,7 @@ namespace DakaKiki\CustomerArtworkUpload\WooCommerce;
 
 use DakaKiki\CustomerArtworkUpload\Frontend\ProductUploadField;
 use DakaKiki\CustomerArtworkUpload\Storage\StorageInterface;
+use WC_Order;
 use WC_Order_Item_Product;
 
 defined( 'ABSPATH' ) || exit;
@@ -11,6 +12,8 @@ defined( 'ABSPATH' ) || exit;
 final class CartArtwork {
 
     public const CART_KEY = 'cau_artwork';
+
+    public const ORDER_STORAGE_KEYS_META = '_cau_artwork_storage_keys';
 
     /** @var StorageInterface */
     private $storage;
@@ -23,43 +26,13 @@ final class CartArtwork {
     }
 
     public function register(): void {
-        add_filter(
-            'woocommerce_add_to_cart_validation',
-            array( $this, 'store_validated_upload' ),
-            999,
-            3
-        );
-
-        add_filter(
-            'woocommerce_add_cart_item_data',
-            array( $this, 'add_cart_item_data' ),
-            10,
-            3
-        );
-
-        add_filter(
-            'woocommerce_get_item_data',
-            array( $this, 'display_cart_item_data' ),
-            10,
-            2
-        );
-
-        add_action(
-            'woocommerce_checkout_create_order_line_item',
-            array( $this, 'add_order_item_data' ),
-            10,
-            4
-        );
+        add_filter( 'woocommerce_add_to_cart_validation', array( $this, 'store_validated_upload' ), 999, 3 );
+        add_filter( 'woocommerce_add_cart_item_data', array( $this, 'add_cart_item_data' ), 10, 3 );
+        add_filter( 'woocommerce_get_item_data', array( $this, 'display_cart_item_data' ), 10, 2 );
+        add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'add_order_item_data' ), 10, 4 );
     }
 
-    /**
-     * Store the upload only after the product field's validation has passed.
-     */
-    public function store_validated_upload(
-        bool $passed,
-        int $product_id,
-        int $quantity
-    ): bool {
+    public function store_validated_upload( bool $passed, int $product_id, int $quantity ): bool {
         unset( $product_id, $quantity );
 
         if ( ! $passed || null !== $this->pending_artwork ) {
@@ -72,11 +45,7 @@ final class CartArtwork {
             ? $_FILES[ ProductUploadField::FIELD_NAME ]
             : null;
 
-        if (
-            ! is_array( $file ) ||
-            ! isset( $file['error'] ) ||
-            UPLOAD_ERR_NO_FILE === absint( $file['error'] )
-        ) {
+        if ( ! is_array( $file ) || ! isset( $file['error'] ) || UPLOAD_ERR_NO_FILE === absint( $file['error'] ) ) {
             return $passed;
         }
 
@@ -84,12 +53,10 @@ final class CartArtwork {
 
         if ( is_wp_error( $stored ) ) {
             wc_add_notice( $stored->get_error_message(), 'error' );
-
             return false;
         }
 
         $this->pending_artwork = $stored;
-
         return true;
     }
 
@@ -97,11 +64,7 @@ final class CartArtwork {
      * @param array<string, mixed> $cart_item_data Existing cart data.
      * @return array<string, mixed>
      */
-    public function add_cart_item_data(
-        array $cart_item_data,
-        int $product_id,
-        int $variation_id
-    ): array {
+    public function add_cart_item_data( array $cart_item_data, int $product_id, int $variation_id ): array {
         unset( $product_id, $variation_id );
 
         if ( null === $this->pending_artwork ) {
@@ -109,8 +72,6 @@ final class CartArtwork {
         }
 
         $cart_item_data[ self::CART_KEY ] = $this->pending_artwork;
-
-        // Make separately uploaded artwork produce a separate cart line.
         $cart_item_data['cau_unique_key'] = wp_generate_uuid4();
         $this->pending_artwork             = null;
 
@@ -139,6 +100,7 @@ final class CartArtwork {
 
     /**
      * @param array<string, mixed> $values Cart item values.
+     * @param WC_Order             $order  Order being created.
      */
     public function add_order_item_data(
         WC_Order_Item_Product $item,
@@ -146,7 +108,7 @@ final class CartArtwork {
         array $values,
         $order
     ): void {
-        unset( $cart_item_key, $order );
+        unset( $cart_item_key );
 
         $artwork = isset( $values[ self::CART_KEY ] ) && is_array( $values[ self::CART_KEY ] )
             ? $values[ self::CART_KEY ]
@@ -156,9 +118,28 @@ final class CartArtwork {
             return;
         }
 
-        $item->add_meta_data( '_cau_artwork_storage_key', sanitize_file_name( (string) $artwork['storage_key'] ), true );
+        $storage_key = sanitize_file_name( (string) $artwork['storage_key'] );
+
+        if ( '' === $storage_key ) {
+            return;
+        }
+
+        $item->add_meta_data( '_cau_artwork_storage_key', $storage_key, true );
         $item->add_meta_data( '_cau_artwork_original_name', sanitize_file_name( (string) $artwork['original_name'] ), true );
         $item->add_meta_data( '_cau_artwork_mime_type', sanitize_mime_type( (string) $artwork['mime_type'] ), true );
         $item->add_meta_data( '_cau_artwork_size', absint( $artwork['size'] ), true );
+
+        // Keep a protected order-level index because some permanent-deletion
+        // paths remove/hide line items before the order cleanup hook executes.
+        if ( $order instanceof WC_Order ) {
+            $storage_keys = $order->get_meta( self::ORDER_STORAGE_KEYS_META, true );
+            $storage_keys = is_array( $storage_keys ) ? $storage_keys : array();
+            $storage_keys[] = $storage_key;
+
+            $order->update_meta_data(
+                self::ORDER_STORAGE_KEYS_META,
+                array_values( array_unique( array_filter( array_map( 'sanitize_file_name', $storage_keys ) ) ) )
+            );
+        }
     }
 }
