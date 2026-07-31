@@ -1,35 +1,21 @@
-# Artwork lifecycle cleanup
+# Abandoned artwork cleanup
 
-Copy these files into the plugin root, preserving their paths:
+Install the files under `src/` using their exact names, regenerate Composer's optimized autoloader, and lint each changed PHP file.
 
-- `src/WooCommerce/ArtworkCleanup.php`
-- `src/Plugin.php`
+Pending uploads receive a private `.cau-pending` marker. Successful order creation removes the marker. WordPress cron runs twice daily and deletes pending artwork older than 48 hours.
 
-The supplied `Plugin.php` assumes the existing `ArtworkDownload` constructor
-accepts the shared `StorageInterface` instance, as implemented in the previous
-secure-download milestone.
+The grace period can be changed in seconds:
 
-## Validate
-
-```powershell
-composer dump-autoload -o
-php -l src\WooCommerce\ArtworkCleanup.php
-php -l src\Plugin.php
+```php
+add_filter( 'cau_abandoned_upload_grace_period', function () {
+    return 72 * HOUR_IN_SECONDS;
+} );
 ```
 
-## Test
+## Test checklist
 
-Use a fresh test order containing an artwork upload and note the randomized
-stored filename before each test.
-
-1. Cancel the order: the stored file must remain.
-2. Refund the order: the stored file must remain.
-3. Move the order to Trash: the stored file must remain and downloads must work
-   after restoring the order.
-4. Permanently delete the order from Trash: the stored artwork file must be
-   removed.
-5. Permanently delete an order without artwork: deletion must complete without
-   an error.
-
-Run the permanent-deletion test once with HPOS enabled. If your site supports
-switching to legacy order storage in a test environment, repeat it there too.
+1. Upload artwork and add it to the cart without checking out. Confirm the artwork and its `.cau-pending` marker exist.
+2. Complete checkout. Confirm the artwork remains and its marker disappears.
+3. Confirm a failed-payment order also removes the marker and retains the artwork.
+4. For a safe local test, temporarily set the grace-period filter to `HOUR_IN_SECONDS`, age a marker beyond one hour, and run the `cau_cleanup_abandoned_artwork` cron event.
+5. Confirm the abandoned artwork and marker are deleted, while ordered artwork remains.

@@ -8,6 +8,7 @@ use DakaKiki\CustomerArtworkUpload\Admin\ProductSettings;
 use DakaKiki\CustomerArtworkUpload\Frontend\ProductUploadField;
 use DakaKiki\CustomerArtworkUpload\Infrastructure\Requirements;
 use DakaKiki\CustomerArtworkUpload\Storage\LocalStorage;
+use DakaKiki\CustomerArtworkUpload\WooCommerce\AbandonedArtworkCleanup;
 use DakaKiki\CustomerArtworkUpload\WooCommerce\ArtworkCleanup;
 use DakaKiki\CustomerArtworkUpload\WooCommerce\CartArtwork;
 
@@ -50,6 +51,9 @@ final class Plugin {
 
         $artwork_cleanup = new ArtworkCleanup( $storage );
         $artwork_cleanup->register();
+
+        $abandoned_artwork_cleanup = new AbandonedArtworkCleanup( $storage );
+        $abandoned_artwork_cleanup->register();
 
         /**
          * Fires after Customer Artwork Upload has passed its requirements check.
