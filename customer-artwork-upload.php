@@ -44,6 +44,8 @@ if ( ! file_exists( $autoload_file ) ) {
 
 require_once $autoload_file;
 
+\DakaKiki\CustomerArtworkUpload\WooCommerce\Compatibility::register();
+
 add_action(
     'plugins_loaded',
     static function (): void {

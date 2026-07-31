@@ -2,6 +2,9 @@
 
 namespace DakaKiki\CustomerArtworkUpload;
 
+use DakaKiki\CustomerArtworkUpload\Admin\DependencyNotice;
+use DakaKiki\CustomerArtworkUpload\Infrastructure\Requirements;
+
 defined( 'ABSPATH' ) || exit;
 
 final class Plugin {
@@ -21,6 +24,19 @@ final class Plugin {
 
     public function boot(): void {
         add_action( 'init', array( $this, 'load_textdomain' ) );
+
+        if ( ! Requirements::has_woocommerce() ) {
+            DependencyNotice::register();
+
+            return;
+        }
+
+        /**
+         * Fires after Customer Artwork Upload has passed its requirements check.
+         *
+         * @since 0.1.0
+         */
+        do_action( 'cau_loaded' );
     }
 
     public function load_textdomain(): void {
