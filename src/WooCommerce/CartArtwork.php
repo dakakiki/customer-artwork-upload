@@ -22,6 +22,7 @@ final class CartArtwork {
         add_filter( 'woocommerce_add_to_cart_validation', array( $this, 'store_validated_upload' ), 999, 3 );
         add_filter( 'woocommerce_add_cart_item_data', array( $this, 'add_cart_item_data' ), 10, 3 );
         add_filter( 'woocommerce_get_item_data', array( $this, 'display_cart_item_data' ), 10, 2 );
+        add_action( 'woocommerce_remove_cart_item', array( $this, 'delete_removed_cart_item_artwork' ), 10, 2 );
         add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'add_order_item_data' ), 10, 4 );
         add_action( 'woocommerce_new_order_item', array( $this, 'mark_order_item_artwork_permanent' ), 10, 3 );
         add_action( 'woocommerce_checkout_order_created', array( $this, 'mark_order_artwork_permanent' ) );
@@ -52,6 +53,49 @@ final class CartArtwork {
         $artwork = isset( $cart_item[ self::CART_KEY ] ) && is_array( $cart_item[ self::CART_KEY ] ) ? $cart_item[ self::CART_KEY ] : array();
         if ( ! empty( $artwork['original_name'] ) ) { $item_data[] = array( 'key' => __( 'Artwork', 'customer-artwork-upload' ), 'value' => esc_html( (string) $artwork['original_name'] ) ); }
         return $item_data;
+    }
+
+    /**
+     * Delete artwork when its unfinalized cart item is explicitly removed.
+     *
+     * Storage refuses this operation after the pending marker has been
+     * removed, so artwork already attached to an order remains protected.
+     *
+     * @param string $cart_item_key Cart item key being removed.
+     * @param mixed  $cart          WooCommerce cart instance.
+     */
+    public function delete_removed_cart_item_artwork( string $cart_item_key, $cart ): void {
+        if ( ! is_object( $cart ) || ! method_exists( $cart, 'get_cart_item' ) ) {
+            return;
+        }
+
+        $cart_item = $cart->get_cart_item( $cart_item_key );
+
+        if ( ! is_array( $cart_item ) ) {
+            return;
+        }
+
+        $artwork = isset( $cart_item[ self::CART_KEY ] ) && is_array( $cart_item[ self::CART_KEY ] )
+            ? $cart_item[ self::CART_KEY ]
+            : array();
+        $storage_key = isset( $artwork['storage_key'] )
+            ? sanitize_file_name( (string) $artwork['storage_key'] )
+            : '';
+
+        if ( '' === $storage_key || ! method_exists( $this->storage, 'delete_pending' ) ) {
+            return;
+        }
+
+        if ( ! $this->storage->delete_pending( $storage_key ) && function_exists( 'wc_get_logger' ) ) {
+            wc_get_logger()->warning(
+                'Pending artwork could not be deleted after its cart item was removed.',
+                array(
+                    'source'        => 'customer-artwork-upload',
+                    'cart_item_key' => $cart_item_key,
+                    'storage_key'   => $storage_key,
+                )
+            );
+        }
     }
 
     public function add_order_item_data( WC_Order_Item_Product $item, string $cart_item_key, array $values, $order ): void {

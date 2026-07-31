@@ -117,6 +117,40 @@ final class LocalStorage implements StorageInterface {
         return $result;
     }
 
+    /**
+     * Delete an upload only while it is still marked as pending.
+     *
+     * This deliberately refuses to delete files whose marker was removed at
+     * checkout, protecting artwork that has already been attached to an order.
+     */
+    public function delete_pending( string $storage_key ): bool {
+        $storage_key = $this->sanitize_storage_key( $storage_key );
+
+        if ( '' === $storage_key ) {
+            return false;
+        }
+
+        $marker = $this->get_pending_path( $storage_key );
+
+        if ( '' === $marker || ! is_file( $marker ) ) {
+            return false;
+        }
+
+        $path = $this->get_path( $storage_key );
+
+        if ( '' !== $path && is_file( $path ) ) {
+            wp_delete_file( $path );
+
+            if ( file_exists( $path ) ) {
+                return false;
+            }
+        }
+
+        wp_delete_file( $marker );
+
+        return ! file_exists( $marker );
+    }
+
     public function delete( string $storage_key ): bool {
         $path = $this->get_path( $storage_key );
 
