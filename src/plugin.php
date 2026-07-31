@@ -4,6 +4,7 @@ namespace DakaKiki\CustomerArtworkUpload;
 
 use DakaKiki\CustomerArtworkUpload\Admin\DependencyNotice;
 use DakaKiki\CustomerArtworkUpload\Infrastructure\Requirements;
+use DakaKiki\CustomerArtworkUpload\Admin\ProductSettings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -30,6 +31,8 @@ final class Plugin {
 
             return;
         }
+
+        ProductSettings::register();
 
         /**
          * Fires after Customer Artwork Upload has passed its requirements check.
