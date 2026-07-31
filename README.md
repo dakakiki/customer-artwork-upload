@@ -1,26 +1,35 @@
-# Secure administrator artwork download
+# Artwork lifecycle cleanup
 
-Copy these files into the plugin root:
+Copy these files into the plugin root, preserving their paths:
 
-- `src/Admin/ArtworkDownload.php`
-- `src/Plugin.php` (replace the existing file)
+- `src/WooCommerce/ArtworkCleanup.php`
+- `src/Plugin.php`
 
-Then run:
+The supplied `Plugin.php` assumes the existing `ArtworkDownload` constructor
+accepts the shared `StorageInterface` instance, as implemented in the previous
+secure-download milestone.
+
+## Validate
 
 ```powershell
 composer dump-autoload -o
-php -l src\Admin\ArtworkDownload.php
+php -l src\WooCommerce\ArtworkCleanup.php
 php -l src\Plugin.php
 ```
 
-Test with an order containing an artwork upload:
+## Test
 
-1. Open **WooCommerce > Orders** and edit the order.
-2. Find the product line item and click **Download artwork**.
-3. Confirm the original filename downloads and the stored randomized filename is not exposed.
-4. Open the download link in a private/incognito browser window and confirm access is denied or redirected to login.
-5. Sign in as a user without WooCommerce-management permission and confirm the link is absent and direct access returns `403`.
-6. Confirm the direct URL inside `wp-content/uploads/customer-artwork-upload-private/` remains blocked.
+Use a fresh test order containing an artwork upload and note the randomized
+stored filename before each test.
 
-The controller verifies the WooCommerce management capability, a per-order-item nonce,
-the order item, its order, and the protected file before streaming it.
+1. Cancel the order: the stored file must remain.
+2. Refund the order: the stored file must remain.
+3. Move the order to Trash: the stored file must remain and downloads must work
+   after restoring the order.
+4. Permanently delete the order from Trash: the stored artwork file must be
+   removed.
+5. Permanently delete an order without artwork: deletion must complete without
+   an error.
+
+Run the permanent-deletion test once with HPOS enabled. If your site supports
+switching to legacy order storage in a test environment, repeat it there too.
